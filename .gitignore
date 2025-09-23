@@ -1,0 +1,20 @@
+# Eclipse specific files
+.classpath
+.project
+.settings/
+
+# Build / Output folders
+/bin/
+/build/
+
+# Ignore db.properties in WEB-INF/classes
+src/main/webapp/WEB-INF/classes/db.properties
+
+# Server-specific files
+Servers/
+*.log
+*.tmp
+
+# OS-specific files
+.DS_Store
+Thumbs.db
