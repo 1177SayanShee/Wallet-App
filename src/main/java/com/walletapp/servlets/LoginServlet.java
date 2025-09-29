@@ -35,6 +35,7 @@ public class LoginServlet extends HttpServlet {
                 // ✅ Store user in session
                 HttpSession session = request.getSession();
                 session.setAttribute("currentUser", user);
+                session.setAttribute("userId", user.getId());
 
                 // ✅ Check must_change_password flag
                 if (user.isMustChangePassword()) {
@@ -44,7 +45,8 @@ public class LoginServlet extends HttpServlet {
                     response.sendRedirect("RegisterServlet"); 
                 } else {
                     // Normal flow to dashboard
-                    response.sendRedirect("dashboard.jsp");
+//                    response.sendRedirect("dashboard.jsp");
+                	response.sendRedirect("records.jsp");
                 }
 
             } else {

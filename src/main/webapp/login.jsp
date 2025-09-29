@@ -21,7 +21,8 @@
         
         <form action="LoginServlet" method="post">
             <div class="input-group">
-                <input type="email" name="email" value="<%= email != null ? email : "" %>" readonly>
+               <%--  <input type="email" name="email" value="<%= email != null ? email : "" %>" readonly> --%>
+                <input type="email" name="email" value="<%= email != null ? email : "" %>" placeholder="Enter your email">
             </div>
             <div class="input-group">
                 <input type="password" name="password" placeholder="Enter your password" required>
