@@ -1,28 +1,3 @@
-//package com.walletapp.util;
-//
-//import java.sql.Connection;
-//import java.sql.DriverManager;
-//import java.sql.SQLException;
-//
-//public class DBUtil {
-//    private static final String URL = "jdbc:mysql://localhost:3306/wallet_app?useSSL=false&serverTimezone=UTC";
-//    private static final String USER = "root";       // <-- set your DB username
-//    private static final String PASS = "91636Ab*#";   // <-- set your DB password
-//
-//    static {
-//        try {
-//            Class.forName("com.mysql.cj.jdbc.Driver");
-//        } catch (ClassNotFoundException e) {
-//            e.printStackTrace();
-//        }
-//    }
-//
-//    public static Connection getConnection() throws SQLException {
-//        return DriverManager.getConnection(URL, USER, PASS);
-//    }
-//}
-
-
 package com.walletapp.util;
 
 import java.sql.Connection;
@@ -32,24 +7,42 @@ import java.util.Properties;
 import java.io.InputStream;
 import java.io.IOException;
 
+/**
+ * Utility class for managing database connections.
+ * Implements a thread-safe Singleton pattern to ensure a single instance.
+ * Loads database configuration from the <code>db.properties</code> file
+ * and dynamically loads the JDBC driver.
+ */
 public class DBUtil {
 
-    // Singleton instance
+    /** Singleton instance of DBUtil */
     private static volatile DBUtil instance;
 
-    // Database properties
+    /** Fully qualified JDBC driver class name */
     private String driver;
+
+    /** JDBC connection URL */
     private String url;
+
+    /** Database username */
     private String user;
+
+    /** Database password */
     private String password;
 
-    // Private constructor to prevent instantiation
+    /**
+     * Private constructor to prevent external instantiation.
+     * Loads database properties and the JDBC driver.
+     */
     private DBUtil() {
-        loadProperties();  // load from db.properties
-        loadDriver();      // load driver dynamically
+        loadProperties();
+        loadDriver();
     }
 
-    // Load DB properties from db.properties file
+    /**
+     * Loads database connection properties from <code>db.properties</code> file.
+     * @throws RuntimeException if the properties file cannot be found or loaded
+     */
     private void loadProperties() {
         Properties props = new Properties();
         try (InputStream input = DBUtil.class.getClassLoader().getResourceAsStream("db.properties")) {
@@ -57,19 +50,20 @@ public class DBUtil {
                 throw new RuntimeException("Unable to find db.properties");
             }
             props.load(input);
-
             this.driver = props.getProperty("db.driver");
             this.url = props.getProperty("db.url");
             this.user = props.getProperty("db.user");
             this.password = props.getProperty("db.password");
-
         } catch (IOException e) {
             e.printStackTrace();
             throw new RuntimeException("Error loading db.properties", e);
         }
     }
 
-    // Load JDBC driver
+    /**
+     * Dynamically loads the JDBC driver class.
+     * @throws RuntimeException if the driver class cannot be found
+     */
     private void loadDriver() {
         try {
             Class.forName(driver);
@@ -79,7 +73,11 @@ public class DBUtil {
         }
     }
 
-    // Public static method to provide access to the single instance (Double-checked locking)
+    /**
+     * Provides access to the singleton instance of DBUtil.
+     * Implements double-checked locking for thread-safety.
+     * @return singleton instance of DBUtil
+     */
     public static DBUtil getInstance() {
         if (instance == null) {
             synchronized (DBUtil.class) {
@@ -91,7 +89,11 @@ public class DBUtil {
         return instance;
     }
 
-    // Get a new DB connection
+    /**
+     * Creates and returns a new database connection.
+     * @return a new JDBC Connection
+     * @throws SQLException if a database access error occurs
+     */
     public Connection getConnection() throws SQLException {
         return DriverManager.getConnection(url, user, password);
     }

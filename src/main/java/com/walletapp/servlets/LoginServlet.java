@@ -13,9 +13,48 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.Optional;
 
+
+/**
+ * Servlet responsible for handling user authentication and login flow.
+ *
+ * <p>This servlet processes user login requests by verifying credentials against stored
+ * user data in the database. It supports both regular users and those required to
+ * change their password after receiving a temporary one.</p>
+ *
+ * <p><b>Workflow:</b></p>
+ * <ul>
+ *   <li>Retrieves email and password from the login form.</li>
+ *   <li>Fetches the corresponding user record via {@link com.walletapp.dao.UserDAO}.</li>
+ *   <li>Validates the password using BCrypt hashing.</li>
+ *   <li>Creates a user session and redirects appropriately based on user flags.</li>
+ * </ul>
+ *
+ * <p>If authentication fails (invalid password or unknown email), the user is returned
+ * to the login page with an error message.</p>
+ *
+ * @author Sayan
+ * @version 1.0
+ * @since 2025-10-07
+ */
 @WebServlet("/LoginServlet")
 public class LoginServlet extends HttpServlet {
 
+	 /**
+     * Handles POST requests for user login.
+     * 
+     * <p>This method authenticates the user based on the provided email and password.
+     * If successful, it initiates an HTTP session and redirects to either:
+     * <ul>
+     *   <li>{@code RegisterServlet} — if the user must change their password, or</li>
+     *   <li>{@code DashboardServlet} — for regular authenticated users.</li>
+     * </ul>
+     * </p>
+     * 
+     * @param request  the {@link HttpServletRequest} containing user credentials
+     * @param response the {@link HttpServletResponse} used for redirection or forwarding
+     * @throws ServletException if a servlet-specific error occurs
+     * @throws IOException if input or output errors occur
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -26,7 +65,7 @@ public class LoginServlet extends HttpServlet {
         Optional<User> userOptional = UserDAO.findByEmail(email);
 
         if (userOptional.isPresent()) {
-            System.out.println("Login Servlet Hit");
+            
             User user = userOptional.get();
 
             // ✅ Verify password
@@ -45,8 +84,7 @@ public class LoginServlet extends HttpServlet {
                     response.sendRedirect("RegisterServlet"); 
                 } else {
                     // Normal flow to dashboard
-//                    response.sendRedirect("dashboard.jsp");
-                	response.sendRedirect("records.jsp");
+                	response.sendRedirect("DashboardServlet");
                 }
 
             } else {

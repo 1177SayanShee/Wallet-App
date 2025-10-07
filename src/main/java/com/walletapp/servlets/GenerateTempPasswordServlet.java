@@ -12,9 +12,50 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.sql.SQLException;
 
+
+/**
+ * Servlet responsible for generating and sending temporary passwords to users.
+ *
+ * <p>This servlet handles both new and existing users:
+ * <ul>
+ *   <li>If the user already exists and requires password verification,
+ *       a new temporary password is generated and emailed.</li>
+ *   <li>If the user exists but does not require verification,
+ *       they are redirected to the login page.</li>
+ *   <li>If the user is new, a new account is created and a temporary password
+ *       is sent via email.</li>
+ * </ul>
+ * </p>
+ *
+ * <p>Each temporary password is valid for 15 minutes and must be changed
+ * upon first login.</p>
+ *
+ * <p><b>Responsibilities:</b></p>
+ * <ul>
+ *   <li>Validate email input from the user.</li>
+ *   <li>Check if the user already exists in the database.</li>
+ *   <li>Generate a temporary password and store it in the database.</li>
+ *   <li>Send the temporary password to the user's email via {@link EmailUtil}.</li>
+ *   <li>Redirect or forward the user to the appropriate page with messages.</li>
+ * </ul>
+ *
+ * @author Sayan
+ * @version 1.0
+ * @since 2025-10-07
+ */
 @WebServlet("/GenerateTempPasswordServlet")
 public class GenerateTempPasswordServlet extends HttpServlet {
 
+	
+	/**
+     * Handles POST requests to generate and send a temporary password
+     * based on the user's email input.
+     *
+     * @param request  the {@link HttpServletRequest} containing the user's email parameter
+     * @param response the {@link HttpServletResponse} used to redirect or forward the user
+     * @throws ServletException if a servlet-specific error occurs
+     * @throws IOException      if an I/O error occurs during request handling
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) 
             throws ServletException, IOException {

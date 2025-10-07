@@ -10,6 +10,9 @@
 # Ignore db.properties in WEB-INF/classes
 src/main/webapp/WEB-INF/classes/db.properties
 
+# Ignore email.properties in WEB-INF/classes
+src/main/webapp/WEB-INF/classes/email.properties
+
 # Server-specific files
 Servers/
 *.log

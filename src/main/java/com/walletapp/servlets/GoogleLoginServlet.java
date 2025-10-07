@@ -17,11 +17,55 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
 
+
+/**
+ * Servlet responsible for handling Google Sign-In authentication and user session management.
+ *
+ * <p>This servlet verifies the Google ID token received from the client, validates it using
+ * Google's OAuth2 library, and either retrieves an existing user or creates a new one in the database.</p>
+ *
+ * <p><b>Workflow:</b></p>
+ * <ul>
+ *   <li>Receives the Google ID token sent from the frontend (after successful sign-in).</li>
+ *   <li>Validates the token using the Google API client library.</li>
+ *   <li>Checks if the user exists in the database via {@link com.walletapp.dao.UserDAO}.</li>
+ *   <li>If the user does not exist, creates a new account entry.</li>
+ *   <li>Establishes an HTTP session for the authenticated user and redirects to the dashboard.</li>
+ * </ul>
+ *
+ * <p>If verification fails or an error occurs, the user is redirected back to the index page
+ * with an appropriate error message.</p>
+ *
+ * @author Sayan
+ * @version 1.0
+ * @since 2025-10-07
+ */
 @WebServlet("/GoogleLoginServlet")
 public class GoogleLoginServlet extends HttpServlet {
 
+	/** Google OAuth2 Client ID registered for the Wallet App project. */
     private static final String GOOGLE_CLIENT_ID = "779291629789-nd9ip2k93imo2dot14kjcbbmlpt5fl5d.apps.googleusercontent.com";
 
+    
+    /**
+     * Handles the POST request sent from the Google Sign-In client script.
+     * 
+     * <p>This method performs the following:
+     * <ul>
+     *   <li>Retrieves the Google ID token from the request.</li>
+     *   <li>Validates the token's authenticity and extracts user information.</li>
+     *   <li>Finds or creates a user record in the database.</li>
+     *   <li>Initializes a session and redirects to the dashboard page.</li>
+     * </ul>
+     * </p>
+     *
+     * @param request  the {@link HttpServletRequest} containing the ID token parameter
+     * @param response the {@link HttpServletResponse} used for redirection or forwarding
+     * @throws ServletException if servlet-specific errors occur
+     * @throws IOException if input or output errors occur
+     */
+    
+    @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         try {
             String idTokenString = request.getParameter("credential");

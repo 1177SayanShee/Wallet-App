@@ -1,630 +1,391 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ page import="java.util.*,com.walletapp.dao.RecordDAO,com.walletapp.model.Record,com.walletapp.model.Label" %>
+<%@ page import="com.walletapp.dao.*" %>
+<%@ page import="com.walletapp.model.*" %>
 
 <%
-    // ✅ Get userId from session
     Integer userId = (Integer) session.getAttribute("userId");
-
-    // Optional: redirect to login if no userId found
     if (userId == null) {
         response.sendRedirect("login.jsp");
         return;
     }
+
+    RecordDAO recordDAO = new RecordDAO();
+    List<Record> records = recordDAO.getRecordsByUserId(userId);
+
+    AccountDAO accountDAO = new AccountDAO();
+    List<Account> accounts = accountDAO.getAccountsByUserId(userId);
+
+    LabelDAO labelDAO = new LabelDAO();
+    List<Label> labels = labelDAO.getLabelsByUserId(userId);
 %>
-
-<%@ page import="java.sql.*,java.util.*" %>
-<%@ page import="com.walletapp.util.DBUtil" %>
-<%
-    // ✅ Get records for this user
-    List<Map<String, Object>> records = new ArrayList<>();
-    String sql = "SELECT * FROM records WHERE user_id=? ORDER BY record_date DESC";
-
-    try (Connection conn = DBUtil.getInstance().getConnection();
-         PreparedStatement ps = conn.prepareStatement(sql)) {
-
-        ps.setInt(1, userId);
-        try (ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                Map<String, Object> rec = new HashMap<>();
-                rec.put("record_date", rs.getDate("record_date"));
-                rec.put("account", rs.getString("account"));
-                rec.put("category", rs.getString("category"));
-                rec.put("label", rs.getString("label"));
-                rec.put("payment_type", rs.getString("payment_type"));
-                rec.put("record_type", rs.getString("record_type"));
-                rec.put("amount", rs.getBigDecimal("amount"));
-                rec.put("description", rs.getString("description"));
-                records.add(rec);
-            }
-        }
-    } catch (SQLException e) {
-        e.printStackTrace();
-    }
-%>
-
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Records</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 <style>
-    body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-        background-color: #f7f7f7;
-    }
-    .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 15px 20px;
-        background: #fff;
-        border-bottom: 1px solid #ddd;
-    }
-    .header h1 {
-        font-size: 20px;
-        margin: 0;
-    }
-    .record-btn {
-        background: #28a745;
-        color: #fff;
-        border: none;
-        padding: 10px 15px;
-        cursor: pointer;
-        border-radius: 5px;
-    }
-    .container {
-        display: flex;
-        min-height: calc(100vh - 60px);
-    }
-    .sidebar {
-        width: 250px;
-        background: #fff;
-        padding: 20px;
-        border-right: 1px solid #ddd;
-    }
-    .sidebar h2 {
-        font-size: 18px;
-        margin-top: 0;
-    }
-    .sidebar label {
-        display: block;
-        margin-top: 15px;
-        font-weight: bold;
-        font-size: 14px;
-    }
-    .sidebar select, .sidebar input {
-        width: 100%;
-        padding: 8px;
-        margin-top: 5px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-    .main-content {
-        flex: 1;
-        padding: 20px;
-        text-align: center;
-        color: #888;
-    }
-
- 
- /* --- Modal --- */
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 9999;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow-y: auto;
-    background-color: rgba(0,0,0,0.4);
+:root{
+  --primary-green:#28a745;
+  --bg:#f4f6f8;
+  --card-border:#e9ecef;
+  --income-green:#a3e4a1;
+  --expense-red:#f5a3a3;
 }
-
-/* make modal-content bigger, cleaner */
-.modal-content {
-    background-color: #fff;
-    margin: 3% auto;
-    padding: 30px;
-    border-radius: 10px;
-    width: 600px; /* increased width */
-    max-width: 90%;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-    position: relative;
-    animation: slideDown 0.3s ease-out;
-}
-
-/* Close button */
-.close {
-    color: #888;
-    position: absolute;
-    top: 15px;
-    right: 20px;
-    font-size: 24px;
-    cursor: pointer;
-}
-
-/* Make the form inputs stretch and have consistent look */
-.modal-content form {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 15px 20px;
-}
-
-.modal-content h2 {
-    margin-top: 0;
-    grid-column: span 2;
-    text-align: center;
-    font-size: 24px;
-    color: #28a745;
-}
-
-/* labels above inputs */
-.modal-content label {
-    display: block;
-    font-size: 14px;
-    font-weight: bold;
-    margin-bottom: 5px;
-    color: #333;
-}
-
-/* unify input/select/textarea */
-.modal-content input,
-.modal-content select,
-.modal-content textarea {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 14px;
-    box-sizing: border-box;
-    transition: border-color 0.2s;
-}
-
-.modal-content input:focus,
-.modal-content select:focus,
-.modal-content textarea:focus {
-    border-color: #28a745;
-    outline: none;
-}
-
-/* Textarea full width */
-.modal-content textarea {
-    grid-column: span 2;
-    resize: vertical;
-    min-height: 80px;
-}
-
-/* Submit button full width */
-.modal-content button {
-    grid-column: span 2;
-    margin-top: 15px;
-    background: #28a745;
-    color: #fff;
-    padding: 12px;
-    font-size: 16px;
-    border: none;
-    cursor: pointer;
-    border-radius: 6px;
-    transition: background 0.2s;
-}
-
-.modal-content button:hover {
-    background: #218838;
-}
-
-/* simple entrance animation */
-@keyframes slideDown {
-  from {transform: translateY(-30px); opacity: 0;}
-  to {transform: translateY(0); opacity: 1;}
-}
- 
-
- .cards-container {
-    display: flex;
-    flex-direction: column;  
-        gap: 15px;
-}
-
-.record-card {
-    background: #fff;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    text-align: left;
-    display: block;
-    transition: transform 0.2s ease;
-}
-
-.record-card:hover {
-    transform: translateY(-3px);
-}
-.record-card div {
-    margin-bottom: 6px;
-    font-size: 14px;
-} */
-
-
-/* .main-content {
-    flex: 1;
-    padding: 20px;
-}
-
-/* container */
-/* Import modern font */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
-
 body {
-    font-family: 'Poppins', Arial, sans-serif;
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  margin: 0;
+  color: #212529;
+}
+.main-wrapper { display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  width: 260px; background: #fff; padding: 20px; border-right: 1px solid var(--card-border);
+  position: fixed; top: 0; left: 0; height: 100vh; box-sizing: border-box;
+}
+.sidebar .logo { width: 44px; height: 44px; background: var(--primary-green); border-radius: 10px; margin-bottom: 18px; }
+.sidebar h2 { font-size: 20px; margin: 0 0 12px 0; }
+.sidebar .filter-form { margin-top: 20px; }
+
+/* Main */
+.main-content { margin-left: 260px; width: calc(100% - 260px); padding: 24px; box-sizing: border-box; }
+
+/* Header/nav */
+.header { display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px; }
+.main-nav a { color: #6c757d; text-decoration: none; padding: 8px 12px; border-radius: 8px; margin-right:6px; display:inline-block; }
+.main-nav a.active, .main-nav a:hover { background: #e9f5ec; color: var(--primary-green); }
+
+/* cards */
+.card-dashboard {
+  border-radius: 14px;
+  padding: 18px;
+  border: 1px solid var(--card-border);
+  box-shadow: 0 10px 30px rgba(16,24,40,0.06);
+  margin-bottom: 20px;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.card-dashboard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 36px rgba(16,24,40,0.08);
 }
 
-/* main container */
-.main-content {
-    flex: 1;
-    padding: 20px;
+/* record card - full width with flexible spacing */
+.record-card .card-body {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px 24px; /* vertical and horizontal gap */
+  font-size: 0.95rem;
+}
+.record-card .card-body > div {
+  flex: 1 1 150px; /* grow, shrink, min-width */
+  min-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* cards container */
-.cards-container {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-/* record pill */
-.record-card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 18px 24px; /* larger height */
-    border-radius: 40px; /* pill */
-    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-    font-size: 15px;
-    font-weight: 500;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-/* hover effect */
-.record-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.18);
-}
-
-/* left block */
-.record-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 3px;
-}
-
-/* date styling */
-.record-date {
-    font-size: 13px;
-    opacity: 0.85;
-    margin-right: 15px;
-    font-weight: 400;
-}
-
-/* amount styling */
-.record-amount {
-    font-weight: 600;
-    font-size: 17px;
-}
-
-/* income variant */
-.record-card.income {
-    background-color: #c2f5d4; /* deeper green */
-    color: #0f5132;
-}
-.record-card.income .record-amount {
-    color: #198754; /* bootstrap green */
-}
-
-/* expense variant */
-.record-card.expense {
-    background-color: #f8c6c6; /* deeper red */
-    color: #842029;
-}
-.record-card.expense .record-amount {
-    color: #dc3545; /* bootstrap red */
-}
-
-/* category bold + description subtle */
-.record-info span:first-child {
-    font-size: 16px;
-    font-weight: 600;
-    color: inherit;
-}
-.record-info span:last-child {
-    font-size: 14px;
-    opacity: 0.9;
-}
-
-
-
-
-    
+/* modal tweaks */
+.modal-content { border-radius: 12px; }
 </style>
-
-
 </head>
 <body>
+<div class="main-wrapper">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo"></div>
+    <h2>Dashboard</h2>
 
-<div class="header">
-    <h1>Records</h1>
-    <button class="record-btn" onclick="openModal()">+ Record</button>
-</div>
-
-<div class="container">
-    <div class="sidebar">
-        <h2>Filters</h2>
-
-        <label>Date</label>
-        <input type="date" name="filterDate">
-
-        <label>Account</label>
-        <select>
-            <option>All Accounts</option>
-            <option>Bank A</option>
-            <option>Wallet</option>
-        </select>
-
-        <label>Categories</label>
-        <select>
-            <option>All Categories</option>
-            <option>Food</option>
-            <option>Rent</option>
-        </select>
-
-        <label>Labels</label>
-        <select>
-            <option>All Labels</option>
-            <option>Personal</option>
-            <option>Business</option>
-        </select>
-
-        <label>Payment Type</label>
-        <select>
-            <option>All Types</option>
-            <option>Cash</option>
-            <option>Card</option>
-        </select>
-
-        <label>Record Types</label>
-        <select>
-            <option>All Records</option>
-            <option>Expense</option>
-            <option>Income</option>
-        </select>
-
-        <label>Amount</label>
-        <input type="number" step="0.01" name="filterAmount" placeholder="Amount">
-    </div>
-
-    <div class="main-content">
-        <div class="main-content">
-    <h2>Your Records</h2>
-    <div class="cards-container">
-    <%-- <%
-        if (records.isEmpty()) {
-    %>
-        <p>Sorry, no records were found for this combination of filters.</p>
-    <%
-        } else {
-            for (Map<String, Object> r : records) {
-                String recordType = (String) r.get("record_type");
-                String color = "Expense".equalsIgnoreCase(recordType) ? "#dc3545" : "#28a745"; // red for expense, green for income
-    %>
-        <div class="record-card" style="border-left:5px solid <%=color%>;">
-            <div><strong>Date:</strong> <%=r.get("record_date")%></div>
-            <div><strong>Account:</strong> <%=r.get("account")%></div>
-            <div><strong>Category:</strong> <%=r.get("category")%></div>
-            <div><strong>Label:</strong> <%=r.get("label")%></div>
-            <div><strong>Payment:</strong> <%=r.get("payment_type")%></div>
-            <div><strong>Type:</strong> <span style="color:<%=color%>;"><%=recordType%></span></div>
-            <div><strong>Amount:</strong> <span style="color:<%=color%>;">₹<%=r.get("amount")%></span></div>
-            <div><strong>Description:</strong> <%=r.get("description")%></div>
+    <!-- Filter form -->
+    <div class="filter-form">
+      <form method="get" action="RecordsServlet">
+        <div class="mb-3">
+          <label class="form-label">Account</label>
+          <select name="accountId" class="form-select">
+            <option value="">All Accounts</option>
+            <%
+              Integer selectedAccountId = (Integer) request.getAttribute("selectedAccountId");
+              if (accounts != null) {
+                  for (Account acc : accounts) {
+                      String selected = (selectedAccountId != null && selectedAccountId == acc.getId()) ? "selected" : "";
+            %>
+              <option value="<%= acc.getId() %>" <%= selected %>><%= acc.getName() %></option>
+            <%
+                  }
+              }
+            %>
+          </select>
         </div>
-    <%
-            }
-        }
-    %> --%>
-    
-    
-    
-      <%-- <%
-        if (records.isEmpty()) {
-    %>
-        <p>Sorry, no records were found for this combination of filters.</p>
-    <%
-        } else {
-            for (Map<String, Object> r : records) {
-                String recordType = (String) r.get("record_type");
-                String color = "Expense".equalsIgnoreCase(recordType) ? "#dc3545" : "#28a745"; // red for expense, green for income
-    %>
-        <div class="record-card" style="border-left:5px solid <%=color%>;">
-            <div><strong>Date:</strong> <%=r.get("record_date")%></div>
-            <div><strong>Account:</strong> <%=r.get("account")%></div>
-            <div><strong>Category:</strong> <%=r.get("category")%></div>
-            <div><strong>Label:</strong> <%=r.get("label")%></div>
-            <div><strong>Payment:</strong> <%=r.get("payment_type")%></div>
-            <div><strong>Type:</strong> <span style="color:<%=color%>;"><%=recordType%></span></div>
-            <div><strong>Amount:</strong> <span style="color:<%=color%>;">₹<%=r.get("amount")%></span></div>
-            <div><strong>Description:</strong> <%=r.get("description")%></div>
+        <div class="mb-3">
+          <label class="form-label">From</label>
+          <input type="date" class="form-control" name="fromDate" value="<%= request.getAttribute("fromDate") != null ? request.getAttribute("fromDate") : "" %>">
         </div>
-    <%
+        <div class="mb-3">
+          <label class="form-label">To</label>
+          <input type="date" class="form-control" name="toDate" value="<%= request.getAttribute("toDate") != null ? request.getAttribute("toDate") : "" %>">
+        </div>
+        <div>
+          <button class="btn btn-success w-100" type="submit">Filter</button>
+        </div>
+      </form>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <header class="header">
+      <nav class="main-nav">
+        <a href="DashboardServlet">Dashboard</a>
+        <a href="accounts.jsp">Accounts</a>
+        <a href="#" class="active">Records</a>
+      </nav>
+      
+      <!--  -->
+				<div class="header-actions d-flex align-items-center">
+                    <button class="btn btn-success me-3" data-bs-toggle="modal" data-bs-target="#addRecordModal">+ Record</button>
+                    
+                    <!-- User Profile Dropdown -->
+                    <div class="dropdown">
+                        <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" role="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-weight: 600; color: #6c757d;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"
+                                fill="#6c757d" viewBox="0 0 16 16">
+                                <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+                                <path fill-rule="evenodd"
+                                    d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z" />
+                            </svg>
+                            <span class="ms-2">Sayan Shee</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="LogoutServlet">Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+				
+				<!--  -->
+    </header>
+
+    <!-- Record Cards -->
+    <div class="row mt-4">
+      <%
+        if (records != null && !records.isEmpty()) {
+            for (Record rec : records) {
+                String cardColor = rec.getRecordType().equalsIgnoreCase("Income") ? "var(--income-green)" : "var(--expense-red)";
+                String amountSign = rec.getRecordType().equalsIgnoreCase("Income") ? "+" : "-";
+      %>
+        <div class="col-12 mb-3">
+          <div class="card card-dashboard record-card" style="background:<%=cardColor%>;">
+            <div class="card-body">
+              <div>Category: <strong><%= rec.getCategory() %></strong></div>
+              <div>Type: <strong><%= rec.getRecordType() %></strong></div>
+              <div>Amount: <strong><%= amountSign %>₹<%= rec.getAmount() %></strong></div>
+              <div>Note: <%= rec.getNote() != null ? rec.getNote() : "-" %></div>
+              <div>Account: <%= rec.getAccountName() != null ? rec.getAccountName() : "-" %></div>
+              <div>Payment: <%= rec.getPaymentType() != null ? rec.getPaymentType() : "-" %></div>
+            </div>
+          </div>
+        </div>
+      <%
             }
+        } else {
+      %>
+        <div class="col-12">
+          <div class="card card-dashboard text-center">
+            <p class="m-3">No records found. Add one to get started.</p>
+          </div>
+        </div>
+      <%
         }
-    %> --%>
-    
-    
-    
-    <%
-    for (Map<String, Object> r : records) {
-        String recordType = (String) r.get("record_type");
-        boolean isExpense = "Expense".equalsIgnoreCase(recordType);
-        String color = isExpense ? "#dc3545" : "#28a745"; // red for expense, green for income
-        String bgColor = isExpense ? "#ffe6e6" : "#e6ffed"; // soft background tint
-%>
-<div class="record-card" style="border-left:8px solid <%=color%>; background:<%=bgColor%>;">
-    <div><strong>Date:</strong> <%=r.get("record_date")%></div>
-    <div><strong>Account:</strong> <%=r.get("account")%></div>
-    <div><strong>Category:</strong> <%=r.get("category")%></div>
-    <div><strong>Label:</strong> <%=r.get("label")%></div>
-    <div><strong>Payment:</strong> <%=r.get("payment_type")%></div>
-    <div><strong>Type:</strong> <span style="color:<%=color%>;"><%=recordType%></span></div>
-    <div><strong>Amount:</strong> <span style="color:<%=color%>;">₹<%=r.get("amount")%></span></div>
-    <div><strong>Description:</strong> <%=r.get("description")%></div>
-</div>
-<%
-    }
-%>
-    
+      %>
     </div>
-</div>
 
-    </div>
-</div>
+    <!-- Add Record Modal -->
+    <div class="modal fade" id="addRecordModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <form method="post" action="<%=request.getContextPath()%>/AddRecordServlet" class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Record</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body row g-3">
 
-<!-- Modal -->
-<%-- <div id="recordModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeModal()">&times;</span>
-        <h2>Add New Record</h2>
-        <form action="AddRecord" method="post">
-        
-            <!-- hidden field for user id -->
-            <input type="hidden" name="user_id" value="<%= userId %>">
-            
-            <label>Date</label>
-            <input type="date" name="record_date" required>
+            <!-- Record Type -->
+            <div class="col-md-6">
+              <label class="form-label">Record Type</label>
+              <select name="recordType" class="form-select" required>
+                <option value="Income">Income</option>
+                <option value="Expense">Expense</option>
+              </select>
+            </div>
 
-            <label>Account</label>
-            <select name="account" required>
-                <option>Bank A</option>
-                <option>Wallet</option>
-            </select>
+            <!-- Amount -->
+            <div class="col-md-6">
+              <label class="form-label">Amount</label>
+              <input type="number" step="0.01" name="amount" class="form-control" required>
+            </div>
 
-            <label>Category</label>
-            <select name="category" required>
+            <!-- Account -->
+            <div class="col-md-6">
+              <label class="form-label">Account</label>
+              <select name="accountId" class="form-select" required>
+                <%
+                for (Account acc : accounts) {
+                %>
+                  <option value="<%=acc.getId()%>"><%=acc.getName()%></option>
+                <%
+                }
+                %>
+              </select>
+            </div>
+
+            <!-- Category -->
+            <div class="col-md-6">
+              <label class="form-label">Category</label>
+              <select name="category" class="form-select" required>
                 <option>Food</option>
-                <option>Rent</option>
-            </select>
+                <option>Transport</option>
+                <option>Shopping</option>
+                <option>Bills</option>
+                <option>Entertainment</option>
+                <option>Health</option>
+                <option>Salary</option>
+                <option>Others</option>
+              </select>
+            </div>
 
-            <label>Label</label>
-            <select name="label">
-                <option>Personal</option>
-                <option>Business</option>
-            </select>
+            <!-- Note -->
+            <div class="col-md-12">
+              <label class="form-label">Note</label>
+              <textarea name="note" class="form-control"></textarea>
+            </div>
 
-            <label>Payment Type</label>
-            <select name="payment_type">
-                <option>Cash</option>
-                <option>Card</option>
-            </select>
+            <!-- Payer -->
+            <div class="col-md-6">
+              <label class="form-label">Payer</label>
+              <input type="text" name="payer" class="form-control">
+            </div>
 
-            <label>Record Type</label>
-            <select name="record_type">
-                <option>Expense</option>
-                <option>Income</option>
-            </select>
+            <!-- Payment Type -->
+            <div class="col-md-6">
+              <label class="form-label">Payment Type</label>
+              <select name="paymentType" class="form-select" required>
+                <option value="Cash">Cash</option>
+                <option value="Card">Card</option>
+                <option value="UPI">UPI</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
 
-            <label>Amount</label>
-            <input type="number" step="0.01" name="amount" placeholder="Enter amount">
+            <!-- Payment Status -->
+            <div class="col-md-6">
+              <label class="form-label">Payment Status</label>
+              <select name="paymentStatus" class="form-select" required>
+                <option value="Cleared" selected>Cleared</option>
+                <option value="Pending">Pending</option>
+                <option value="Failed">Failed</option>
+              </select>
+            </div>
 
-            <label>Description</label>
-            <textarea name="description" placeholder="Optional description"></textarea>
+            <!-- Date Time -->
+            <div class="col-md-6">
+              <label class="form-label">Date & Time (dd/MM/yyyy HH:mm)</label>
+              <input type="text" name="dateTime" class="form-control" placeholder="05/10/2025 14:30" required>
+            </div>
 
-            <button type="submit">Save Record</button>
+            <!-- Labels Dropdown -->
+            <div class="col-md-12">
+              <label class="form-label">Labels</label>
+              <div class="d-flex">
+                <select name="labels" id="labelsDropdown" class="form-select me-2" multiple size="4">
+                  <%
+                  for (Label lbl : labels) {
+                  %>
+                  <option value="<%=lbl.getLabelId()%>"><%=lbl.getLabelName()%></option>
+                  <%
+                  }
+                  %>
+                </select>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addLabelModal">+ Add Label</button>
+              </div>
+              <small class="text-muted">Hold CTRL (Windows) or CMD (Mac) to select multiple labels.</small>
+            </div>
+
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Save Record</button>
+          </div>
         </form>
+      </div>
     </div>
-</div> --%>
 
-<!-- Modal -->
-<div id="recordModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeModal()">&times;</span>
-        <h2>Add New Record</h2>
-        <form action="AddRecord" method="post">
-        
-            <!-- hidden field for user id -->
-            <input type="hidden" name="user_id" value="<%= userId %>">
-            
-            <div>
-                <label>Date</label>
-                <input type="date" name="record_date" required>
+    <!-- Add Label Modal -->
+    <div class="modal fade" id="addLabelModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <form id="addLabelForm" class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Label</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Label Name</label>
+              <input type="text" id="labelName" name="labelName" class="form-control" required>
             </div>
-
-            <div>
-                <label>Account</label>
-                <select name="account" required>
-                    <option>Bank A</option>
-                    <option>Wallet</option>
-                </select>
+            <div class="mb-3">
+              <label class="form-label">Color</label>
+              <input type="color" id="color" name="color" class="form-control form-control-color" value="#ff0000">
             </div>
-
-            <div>
-                <label>Category</label>
-                <select name="category" required>
-                    <option>Food</option>
-                    <option>Rent</option>
-                </select>
-            </div>
-
-            <div>
-                <label>Label</label>
-                <select name="label">
-                    <option>Personal</option>
-                    <option>Business</option>
-                </select>
-            </div>
-
-            <div>
-                <label>Payment Type</label>
-                <select name="payment_type">
-                    <option>Cash</option>
-                    <option>Card</option>
-                </select>
-            </div>
-
-            <div>
-                <label>Record Type</label>
-                <select name="record_type">
-                    <option>Expense</option>
-                    <option>Income</option>
-                </select>
-            </div>
-
-            <div>
-                <label>Amount</label>
-                <input type="number" step="0.01" name="amount" placeholder="Enter amount">
-            </div>
-
-            <div style="grid-column: span 2;">
-                <label>Description</label>
-                <textarea name="description" placeholder="Optional description"></textarea>
-            </div>
-
-            <button type="submit">Save Record</button>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-success">Save Label</button>
+          </div>
         </form>
+      </div>
     </div>
+
+  </main>
 </div>
 
 
-<script>
-    function openModal() {
-        document.getElementById('recordModal').style.display = 'block';
-    }
-    function closeModal() {
-        document.getElementById('recordModal').style.display = 'none';
-    }
-    window.onclick = function(event) {
-        if (event.target == document.getElementById('recordModal')) {
-            closeModal();
-        }
-    }
-</script>
+  </main>
+</div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.getElementById("addLabelForm")?.addEventListener("submit", function(e) {
+    e.preventDefault();
+    const formData = new URLSearchParams(new FormData(this));
+    fetch("AddLabelServlet", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        const option = document.createElement("option");
+        option.value = data.labelId;
+        option.text = data.labelName;
+        option.selected = true;
+        document.getElementById("labelsDropdown").appendChild(option);
+
+        const modalEl = document.getElementById("addLabelModal");
+        const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modalInstance.hide();
+
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(b => b.remove());
+
+        this.reset();
+    })
+    .catch(err => console.error("Error:", err));
+});
+</script>
 </body>
 </html>
